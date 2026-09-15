@@ -1,0 +1,32 @@
+# mcmc_defaults.yaml
+# Reference documentation for default MCMC tuning parameters used in PriorRhythm.
+# These values mirror the function signature defaults in R/BuildingPriors.R and
+# R/Bayesian_Tests.R. This file is for transparency/audit purposes only —
+# it is NOT loaded at runtime. The R function defaults are authoritative.
+
+# --- chain_priors_from_data() / chain_priors_from_data_helper() ---
+# JAGS sampling parameters
+jags:
+  n_chains: 3          # number of MCMC chains (n.chains)
+  n_iter_update: 10000 # burn-in / adaptation iterations (n.iter.update)
+  n_iter_sample: 10000 # posterior sampling iterations (n.iter.sample)
+  rng_name: "base::Mersenne-Twister"  # JAGS RNG name passed via inits
+  rng_seed: 8          # JAGS RNG seed passed via inits (.RNG.seed)
+                       # NOTE: R-level set.seed() has no effect on JAGS;
+                       # only .RNG.seed controls JAGS chain reproducibility.
+
+# --- bayesian_test_example() ---
+# MCMCglmm sampling parameters
+mcmcglmm:
+  nitt: 15000          # total MCMC iterations
+  thin: 5              # thinning interval
+  burnin: 10000        # burn-in iterations
+  seed: 732            # set.seed() for random animal exclusion draw in
+                       # bayesian_test_example() (not MCMC seed)
+  mcmc_seed: 1235      # base seed for MCMCglmm chains (mcmc_seed param)
+                       # unique per-chain seeds derived as:
+                       # mcmc_seed + (time_bin_index - 1) * 4 + model_offset
+                       # offsets: 0=Non_informative, 1=Non_informative_Incomplete,
+                       #          2=Informative_Incomplete, 3=Informative
+  scale: 0.1           # prior variance scaling factor: V = diag(b_v_info / scale)
+  n_exclude: 2         # default number of animals to exclude from incomplete datasets

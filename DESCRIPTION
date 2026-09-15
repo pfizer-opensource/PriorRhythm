@@ -1,0 +1,66 @@
+Package: PriorRhythm
+Type: Package
+Title: Bayesian Hierarchical Priors for Cardiac Safety Pharmacology
+Version: 0.0.0.73
+Authors@R: c(
+    person("Richard", "Virgen-Slane",
+           email = "Richard.Virgen-Slane@pfizer.com",
+           role  = c("aut", "cre")),
+    person("Dean Dingzhou", "Li",
+           role  = "aut")
+  )
+Description: Implements Bayesian hierarchical models for cardiac safety
+    pharmacology data analysis in support of studies conducted within the
+    context of ICH S7B/E14 guidance. Builds informative priors from
+    historical study data to improve statistical power in new studies,
+    reducing animal use in alignment with 3Rs principles. Provides
+    quantitative probability statements for treatment effects on
+    cardiovascular endpoints (QTc, heart rate, blood pressure, and left
+    ventricular pressure), supporting quantitative assessment of
+    cardiovascular safety pharmacology data and evaluation of historical
+    data borrowing approaches within a New Alternative Method (NAM)
+    framework.
+License: Apache License (>= 2) | file LICENSE
+Depends: R (>= 4.3.0)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Config/testthat/edition: 3
+Imports:
+  bayestestR,
+  bslib,
+  cli,
+  coda,
+  dplyr,
+  DT,
+  emmeans,
+  forcats,
+  ggplot2,
+  ggpubr,
+  glue (>= 1.6.1),
+  janitor,
+  MCMCglmm,
+  purrr,
+  readr,
+  rjags,
+  rlang,
+  shiny,
+  shinybusy,
+  shinyjs,
+  shinyWidgets,
+  stringr (>= 1.4.0),
+  tibble,
+  tidyr,
+  yaml
+Suggests:
+  flextable,
+  gganimate,
+  gifski,
+  ragg,
+  knitr,
+  officer,
+  rmarkdown,
+  testthat (>= 3.0.0),
+  xfun
+VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0
+URL: https://github.com/pfizer-opensource/PriorRhythm

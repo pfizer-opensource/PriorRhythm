@@ -1,0 +1,37 @@
+library(PriorRhythm)
+
+# --- 1. Build a config inline ---
+cfg <- study_config(
+  animal_string   = "monkey|dog",
+  column_map      = c(time = "summary_period", activity = "a_mean"),
+  endpoints       = list(
+    qtc = list(alpha0_pop_mean = 250, value_min = 150, value_max = 400, threshold = 10),
+    hr  = list(alpha0_pop_mean = 70,  value_min = 30,  value_max = 300, threshold = 10)
+  ),
+  active_endpoint = "qtc",
+  time_parser     = list(delimiter = "to", units = c("hr", "hours"), allow_unitless = TRUE)
+)
+print(cfg)
+
+# --- 2. Write a template to disk ---
+tmp <- file.path(tempdir(), "my_study_config.yaml")
+write_study_config_template(tmp)
+cat(readLines(tmp), sep = "\n")
+
+# --- 3. Round-trip: read it back ---
+cfg2 <- read_study_config(tmp)
+print(cfg2)
+
+# --- 4. Use config with import_historical_data() ---
+SynHist <- system.file("extdata", "SyntheticHistorical",
+  package = "PriorRhythm", mustWork = TRUE)
+
+# (Normally a folder of study files; using synthetic data here)
+# hist_dat <- import_historical_data(data_path_dir = SynHist, config = cfg)
+
+# --- 5. Error handling ---
+tryCatch(
+  study_config(endpoints = list(qtc = list(value_min = 400, value_max = 150))),
+  error = function(e) message(conditionMessage(e))
+)
+unlink(tmp)

@@ -1,0 +1,406 @@
+---
+title: "Bayesian Priors Workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Bayesian Priors Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = 'figures/',
+  out.width="100%",
+  fig.align = "center",
+  tidy=TRUE,
+  tidy.opts=list(width.cutoff=40)
+)
+```
+
+## Overview
+
+This is the single maintained end-to-end worked example for PriorRhythm. It
+covers the two supported ways of using the package:
+
+1. **Primary workflow — using the Shiny app.** The Shiny app (`run_app()`)
+   is a **priors-only runtime**: by default it loads the reviewed prior
+   artifact bundled with the package and does **not** build priors from raw
+   historical data during an app session. Users launch the app, upload
+   target-study data, select a compatible prior, and review results. This is
+   the supported workflow for the poster-companion release.
+2. **Advanced workflow — building custom priors.** Advanced users who need a
+   prior that is not already in the bundled artifact can build one offline
+   from historical data with `chain_priors_from_data()` and supply the
+   resulting bundle to the app via `run_app(prior_file = ...)`. This section
+   is intentionally concise and API-focused; it does not explain JAGS/MCMC
+   internals.
+
+All data used in this vignette is **synthetic demonstration data only**,
+shipped with the package under `inst/extdata/`. It does not represent
+historical production study data.
+
+## Load package
+
+```{r setup}
+library(PriorRhythm)
+```
+
+```{r load-data, include=FALSE}
+
+# Load synthetic historical data from inst/extdata/
+SynHist <- system.file("extdata", "SyntheticHistorical",
+  package = "PriorRhythm",
+  mustWork = TRUE
+)
+
+Historical_data_long <- readRDS(file = file.path(SynHist, "Syn_long.RDS")) |>
+  dplyr::rename(name = "parameter")
+
+# Load synthetic test data from inst/extdata/
+SynTest <- system.file("extdata", "SyntheticTest",
+  package = "PriorRhythm",
+  mustWork = TRUE
+)
+
+Raw_Test_Study <- readRDS(file = file.path(SynTest, "Syn_test.RDS"))
+
+```
+
+# Primary workflow: the Shiny app
+
+## Launching the app
+
+```{r eval=FALSE}
+run_app()
+```
+
+By default `run_app()` resolves the bundled prior artifact shipped at
+`inst/extdata/priors/list_historical_prior.RDS` — no raw historical data and
+no MCMC sampling occur during the app session. Advanced users can instead
+supply a custom, pre-built, validated bundle with `run_app(prior_file =
+"path/to/bundle.RDS")`.
+
+## Uploading target-study data
+
+The **File upload** tab accepts CSV and TSV files (see `accept` in
+`mod_file_upload_sidebar_ui()`). Uploaded data is read with `load_study_data()`,
+which requires a **wide**-format target-study data frame.
+
+The app shows reviewed File Upload guidance in an expandable **File
+requirements and workflow** panel above the uploaded-data preview, and shows
+reviewed species/endpoint display labels where package metadata is available,
+while preserving raw prior-bundle keys internally for selection and lookup.
+
+### Required columns
+
+-   animal_col = individual animal code
+-   treatment_col = treatment level codes
+-   period_col = period code
+-   time_col = time bins
+-   y_col = assay data
+
+```{r}
+Raw_Test_Study |>
+  dplyr::select(dplyr::any_of(c(
+    "animal_code",
+    "treatment_code",
+    "period_code",
+    "time", "time1", "time2",
+    "value")))
+
+```
+
+`time_bins()` reformats the time column into `time1`/`time2`; the app applies
+this automatically once the time column and delimiter are supplied in the
+sidebar.
+
+```{r}
+Test_Study <- Raw_Test_Study |>
+  time_bins(time_col = "time", delimiter = "to")
+
+Test_Study |>
+  dplyr::select(dplyr::any_of(c(
+    "animal_code",
+    "treatment_code", "period_code",
+    "time", "time1", "time2", "value")))
+
+```
+
+## Selecting a compatible prior
+
+The app lets users browse the bundled priors by species and endpoint, but it
+does **not** automatically verify that a selected prior is appropriate for
+the uploaded data. Users are responsible for selecting a prior whose
+**species**, **endpoint definition**, and **measurement unit** all match the
+target-study data before running an analysis; selecting a mismatched prior
+will produce a result without a warning.
+
+## Testing target-study data against a prior
+
+`bayesian_test_example()` calculates posteriors using the selected prior and
+a weak default prior, so results can be compared side by side.
+
+```{r eval=FALSE}
+# Bundled prior for the first available species/endpoint, as would be
+# selected in the app
+Bundle <- readRDS(
+  system.file("extdata", "priors", "list_historical_prior.RDS",
+    package = "PriorRhythm", mustWork = TRUE))
+
+# Bundles use either a versioned envelope (`Bundle$priors`) or a legacy flat
+# shape (species keys at the top level); resolve either form here.
+priors_tree <- if (!is.null(Bundle$priors)) Bundle$priors else Bundle
+
+# Species/endpoint keys available in the bundled artifact (e.g. "dog"/"nhp"
+# species with endpoints such as "q_tc", "hr", "dbp")
+species  <- names(priors_tree)[1]
+endpoint <- names(priors_tree[[species]])[1]
+selected_prior <- priors_tree[[species]][[endpoint]]$pa
+
+# running analysis
+Test_out1 <- bayesian_test_example(
+  input_tdat    = Test_Study,
+  animal_col    = "animal_code",
+  treatment_col = "treatment_code",
+  period_col    = "period_code",
+  time1_col     = "time1",
+  time2_col     = "time2",
+  y_col         = "value",
+  n_exclude     = 1,
+  pa            = selected_prior
+)
+```
+
+### Credible intervals plot
+
+Both branches are fitted with `MCMCglmm`; the comparison is which prior is
+used, not whether the target data are complete. `Historical prior — full
+data` (`Informative`) uses the selected historical prior on the target
+dataset. `Weak-prior comparator — full data` (`Non_informative`) fits the
+same model with `MCMCglmm`'s weak default prior (no `prior` argument
+supplied) instead of the historical prior.
+
+```{r CI_Plot, eval=FALSE, fig.height=10, fig.width=12}
+CIPlots <- ci_plots(Test_out1,
+  animal_col    = "animal_code",
+  treatment_col = "treatment_code",
+  period_col    = "period_code",
+  time1_col     = "time1",
+  time2_col     = "time2",
+  y_col         = "y",
+  threshold     = 10,
+  time_code_col = "time_code",
+  size          = 1,
+  input_method  = c(
+    "Weak-prior comparator \u2014 full data" = "Non_informative",
+    "Historical prior \u2014 full data"      = "Informative"
+  ))
+
+CIPlots +
+  ggplot2::theme_classic(base_size = 16) +
+  ggplot2::theme(
+    plot.margin     = grid::unit(c(1,1,1,1), "cm"),
+    legend.position = "bottom",
+    legend.box      = "vertical",
+    legend.margin   = ggplot2::margin(),
+    aspect.ratio    = 1
+  )
+
+```
+
+Credible intervals summarize the posterior distribution of the treatment
+effect under each model; they are descriptive summaries of borrowed-strength
+estimation for this dataset, not a determination of clinical or regulatory
+significance.
+
+### Probability statements
+
+```{r Prob_statement, eval=FALSE, fig.height=10, fig.width=10}
+prob_statement_plots(Test_out1,
+  threshold    = 10,
+  input_method = c(
+    "Weak-prior comparator \u2014 full data" = "Non_informative",
+    "Historical prior \u2014 full data"      = "Informative"
+  )) +
+  ggplot2::theme_classic(base_size = 16) +
+  ggplot2::theme(
+    plot.margin     = grid::unit(c(1,1,1,1), "cm"),
+    legend.position = "bottom",
+    legend.box      = "vertical",
+    legend.margin   = ggplot2::margin(),
+    aspect.ratio    = 1
+  )
+
+```
+
+`prob_statement_plots()` reports the posterior probability that the
+treatment effect exceeds a user-specified threshold. This is a probability
+statement about the fitted model given the supplied prior and target data —
+it is not, by itself, a regulatory conclusion or a substitute for expert
+review.
+
+## Prior-bundle diagnostics
+
+Packaged prior bundles record non-confidential, chain-aware convergence
+evidence (R-hat, effective sample size, and pass/acceptable/failed status)
+captured during the controlled Stage 1 build. The app's runtime analyses use
+the pooled posterior draws (`pa`) from the bundle; chain identity is not
+retained in `pa`, so the app **does not**, and cannot, recompute Stage 1
+chain-aware diagnostics at runtime. Reviewing convergence is part of the
+controlled build/refresh process for a prior bundle, not something the app
+repeats for every analysis.
+
+# Advanced workflow: building custom priors from historical data
+
+This section is intentionally brief. It is only needed if the bundled prior
+artifact does not already contain a compatible prior for the
+species/endpoint you need.
+
+## Historical data requirements and format
+
+Data must be in **long** format with the following columns:
+
+-   study_col = `study_code` column
+-   animal_col = individual animal code
+-   treatment_col = treatment level codes
+-   period_col = period code
+-   time_col = time bins
+-   assay_names_col = name column generated by pivot_longer
+-   assay_values_col = value column generated by pivot longer
+
+```{r Historical data}
+
+Historical_data_long |>
+  dplyr::select(
+    dplyr::any_of(c(
+      "study_code", "animal_code",
+      "time",
+      "treatment_code",
+      "period_code",
+      "name", "value")))
+
+```
+
+The time bin column must be split into `time1`/`time2` before calling
+`chain_priors_from_data()`:
+
+```{r}
+Updated_Historical_data_long <- Historical_data_long |>
+  time_bins(time_col = "time", delimiter = "to")
+
+Updated_Historical_data_long |>
+  dplyr::select(dplyr::any_of(c(
+    "study_code", "animal_code",
+    "time", "time1", "time2",
+    "treatment_code",
+    "period_code",
+    "name", "value")))
+
+```
+
+## Building priors
+
+`chain_priors_from_data()` requires `alpha0_pop_mean` — either supplied
+explicitly (as below) or via a `study_config()` endpoint configuration. There
+is no default; a `NULL` value aborts with an informative error.
+
+```{r eval=FALSE}
+# may take a few minutes — runs JAGS MCMC
+List_of_Priors <- Updated_Historical_data_long |>
+  chain_priors_from_data(
+    treatment_col    = "treatment_code",
+    study_col        = "study_code",
+    animal_col       = "animal_code",
+    period_col       = "period_code",
+    assay_names_col  = "name",
+    assay_values_col = "value",
+    assay_name       = c("assay1", "assay2"),
+    alpha0_pop_mean  = 250)
+
+```
+
+Equivalently, using `study_config()` to supply `alpha0_pop_mean` per
+endpoint:
+
+```{r eval=FALSE}
+cfg <- study_config(
+  endpoints = list(
+    assay1 = list(alpha0_pop_mean = 250),
+    assay2 = list(alpha0_pop_mean = 70)
+  ))
+
+List_of_Priors <- Updated_Historical_data_long |>
+  chain_priors_from_data(
+    treatment_col    = "treatment_code",
+    study_col        = "study_code",
+    animal_col       = "animal_code",
+    period_col       = "period_code",
+    assay_names_col  = "name",
+    assay_values_col = "value",
+    assay_name       = c("assay1", "assay2"),
+    config           = cfg)
+
+```
+
+The output of this function is a named list matching the values supplied to
+the `assay_name` argument.
+
+```{r eval=FALSE}
+names(List_of_Priors)
+
+```
+
+### Plot assay1 prior
+
+```{r Plot_prior_assay1, eval=FALSE, fig.height=8, fig.width=12}
+chain_prior_plot(
+  interval_start_times = c(0,3,6,12,18),
+  interval_end_times   = c(3,6,12,18,24),
+  doses                = seq(0,3),
+  prior_list           = List_of_Priors,
+  prior_name           = "assay1") |>
+  ggpubr::ggarrange(plotlist = .)
+
+```
+
+### Plot assay2 prior
+
+```{r Plot_prior_assay2, eval=FALSE, fig.height=8, fig.width=12}
+chain_prior_plot(
+  interval_start_times = c(0,3,6,12,18),
+  interval_end_times   = c(3,6,12,18,24),
+  doses                = seq(0,3),
+  prior_list           = List_of_Priors,
+  prior_name           = "assay2") |>
+  ggpubr::ggarrange(plotlist = .)
+
+```
+
+A bundle intended for use with the app must be assembled with
+`make_runtime_prior_bundle()` (which records the required convergence
+`diagnostics` for each endpoint) before it is passed to `run_app(prior_file =
+...)`; see that function's help page for the required schema.
+
+# Limitations and reproducibility
+
+- All example data in this vignette is **synthetic**; it is generated for
+  demonstration only and is not derived from historical production studies.
+- The Shiny app is a priors-only runtime: it consumes an already-built,
+  validated prior bundle and never fits a Stage 1 JAGS model during an app
+  session.
+- The current target-study upload contract accepts CSV and TSV files only.
+- The app uses reviewed species/endpoint display labels and File Upload
+  guidance from packaged YAML when available, but valid bundled or trusted
+  custom priors remain usable even when those display metadata entries are
+  absent.
+- Users are responsible for confirming that a selected prior's species,
+  endpoint definition, and measurement unit are compatible with the
+  uploaded target-study data; the app does not enforce this automatically.
+- Credible intervals and probability statements reported by this package
+  are descriptive statistical summaries; they are not, by themselves,
+  regulatory determinations.
+- Convergence diagnostics for a prior bundle are recorded once, during the
+  controlled build of that bundle, and are not recomputed by the app at
+  analysis time.

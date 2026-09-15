@@ -1,0 +1,15 @@
+title: "Upload target-study data"
+accepted_files: "Upload CSV or TSV files only."
+analysis_roles:
+  - "Animal code: identifies each animal in the target study."
+  - "Treatment code: identifies the treatment or dose group to compare."
+  - "Period code: identifies the study period for repeated measurements."
+  - "Time column: contains the interval labels used to derive time1 and time2."
+  - "Y variable: contains the endpoint values to analyse against the selected prior."
+workflow:
+  - "Upload one target-study CSV or TSV file in wide format."
+  - "Use Set up Analysis to map the animal, treatment, period, time, and Y-variable fields."
+  - "Select the species and endpoint prior that matches the target-study analysis you want to run."
+  - "Run the Bayesian analysis and review the resulting credible intervals and probability statements."
+time_intervals: "The current app expects the selected time column to contain interval text such as \"0 to 3\" or \"0 to 3 hr\". The default delimiter is \"to\" and can be changed in the sidebar when needed."
+compatibility: "You are responsible for confirming that the uploaded target-study data and the selected prior use compatible species, endpoint definitions, and measurement units. The app does not validate this automatically."
