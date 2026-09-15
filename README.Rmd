@@ -1,62 +1,53 @@
-
-- [PriorRhythm](#priorrhythm)
-  - [Installation](#installation)
-    - [From GitHub](#from-github)
-    - [From source](#from-source)
-  - [Quick start](#quick-start)
-    - [Use a trusted custom prior
-      bundle](#use-a-trusted-custom-prior-bundle)
-  - [Advanced workflow: build priors from historical
-    data](#advanced-workflow-build-priors-from-historical-data)
-  - [Main functions](#main-functions)
-    - [App and bundled-prior workflow](#app-and-bundled-prior-workflow)
-    - [Data preparation and
-      configuration](#data-preparation-and-configuration)
-    - [Prior construction and
-      diagnostics](#prior-construction-and-diagnostics)
-    - [Target-study analysis and
-      reporting](#target-study-analysis-and-reporting)
-    - [Supporting utilities](#supporting-utilities)
-  - [Model](#model)
-  - [Documentation](#documentation)
-  - [Code style](#code-style)
-  - [Important limitations](#important-limitations)
-  - [Ethics statement](#ethics-statement)
-  - [Acknowledgements](#acknowledgements)
-  - [Citation](#citation)
+---
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+  github_document:
+    toc: true
+    toc_depth: 3
+    html_preview: false
+---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
 
 # PriorRhythm
 
 <!-- badges: start -->
-
 [![R-CMD-check](https://github.com/pfizer-rd/Safety_Pharm_Bayesian_App/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/pfizer-rd/Safety_Pharm_Bayesian_App/actions/workflows/R-CMD-check.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 <!-- badges: end -->
 
 <img src="inst/logo/logo.png" align="right" height="139" alt="PriorRhythm logo" />
 
-> PriorRhythm provides Bayesian hierarchical prior-building and
-> target-study analysis workflows for cardiac safety pharmacology. It
-> supports construction of informative priors from approved historical
-> study data and comparison of historical-prior borrowing with a
-> weak-prior comparator for new target-study data. The package is
-> intended to support cardiac safety research, transparent quantitative
-> summaries, and 3Rs-aligned study planning.
+> PriorRhythm provides Bayesian hierarchical prior-building and target-study
+> analysis workflows for cardiac safety pharmacology. It supports construction
+> of informative priors from approved historical study data and comparison of
+> historical-prior borrowing with a weak-prior comparator for new target-study
+> data. The package is intended to support cardiac safety research, transparent
+> quantitative summaries, and 3Rs-aligned study planning.
 
 ## Installation
 
 ### From GitHub
 
-``` r
+```r
 # install.packages("devtools")
 devtools::install_github("pfizer-opensource/PriorRhythm")
 ```
 
 ### From source
 
-``` r
+```r
 # Clone the repository, then run this from the package root.
 devtools::install(".")
 ```
@@ -64,10 +55,10 @@ devtools::install(".")
 ## Quick start
 
 The primary user workflow is the Shiny app. It loads the reviewed,
-precomputed prior bundle shipped with PriorRhythm by default; it does
-not build Stage 1 priors from raw historical data during an app session.
+precomputed prior bundle shipped with PriorRhythm by default; it does not build
+Stage 1 priors from raw historical data during an app session.
 
-``` r
+```{r quick-start-app, eval = FALSE}
 library(PriorRhythm)
 
 # Launch the app with the reviewed bundled prior artifact.
@@ -76,53 +67,50 @@ run_app()
 
 In the app:
 
-1.  Upload one target-study file in CSV or TSV format.
-2.  Review the uploaded data and use **Set up Analysis** to select the
-    animal, treatment, period, time, and response columns.
-3.  Select a species and endpoint prior compatible with the target-study
-    data.
-4.  Run the analysis and review credible intervals and probability
-    statements.
+1. Upload one target-study file in CSV or TSV format.
+2. Review the uploaded data and use **Set up Analysis** to select the animal,
+   treatment, period, time, and response columns.
+3. Select a species and endpoint prior compatible with the target-study data.
+4. Run the analysis and review credible intervals and probability statements.
 
-The app displays friendly reviewed species and endpoint labels where
-metadata is available, but internally retains the raw prior-bundle keys
-needed for selection and lookup. Users remain responsible for confirming
-that the selected prior and target-study data have compatible species,
-endpoint definitions, and measurement units.
+The app displays friendly reviewed species and endpoint labels where metadata
+is available, but internally retains the raw prior-bundle keys needed for
+selection and lookup. Users remain responsible for confirming that the
+selected prior and target-study data have compatible species, endpoint
+definitions, and measurement units.
 
 ### Use a trusted custom prior bundle
 
 Advanced users may supply a compatible, pre-built local prior bundle:
 
-``` r
+```{r quick-start-custom-bundle, eval = FALSE}
 library(PriorRhythm)
 
 run_app(prior_file = "path/to/my_priors.RDS")
 ```
 
-A custom bundle must pass the package’s structural and confidentiality
-checks. Use `list_prior_bundle_endpoints()` to inspect its
-non-confidential species/endpoint inventory before launching the app.
+A custom bundle must pass the package's structural and confidentiality checks.
+Use `list_prior_bundle_endpoints()` to inspect its non-confidential
+species/endpoint inventory before launching the app.
 
-``` r
+```{r quick-start-inventory, eval = FALSE}
 bundle_inventory <- list_prior_bundle_endpoints("path/to/my_priors.RDS")
 print(bundle_inventory)
 ```
 
-See `inst/extdata/priors/README.md` for the expected prior-bundle schema
-and convergence-diagnostics requirements.
+See `inst/extdata/priors/README.md` for the expected prior-bundle schema and
+convergence-diagnostics requirements.
 
 ## Advanced workflow: build priors from historical data
 
 Building a custom prior is an offline workflow for users with approved
 historical data. It runs Stage 1 JAGS MCMC and may take several minutes.
 
-Historical data should be in long format and include study, animal,
-treatment, period, time, endpoint-name, and endpoint-value columns. The
-required `alpha0_pop_mean` must be chosen appropriately for the species
-and endpoint.
+Historical data should be in long format and include study, animal, treatment,
+period, time, endpoint-name, and endpoint-value columns. The required
+`alpha0_pop_mean` must be chosen appropriately for the species and endpoint.
 
-``` r
+```{r advanced-prior-building, eval = FALSE}
 library(PriorRhythm)
 
 # Example outline only: use approved historical data and endpoint-specific
@@ -150,7 +138,7 @@ priors <- historical_long_data |>
 Use `study_config()` when you need reusable file-import, column-mapping,
 time-parser, or endpoint-specific settings.
 
-``` r
+```{r advanced-study-config, eval = FALSE}
 cfg <- study_config(
   file_pattern = "\\.(csv|tsv)$",
   animal_string = "monkey|dog",
@@ -172,15 +160,15 @@ historical_data <- import_historical_data(
 ```
 
 After Stage 1 fitting, create a compatible runtime prior bundle with the
-controlled package build workflow before supplying it to `run_app()`.
-See the worked vignette and `inst/extdata/priors/README.md` for details.
+controlled package build workflow before supplying it to `run_app()`. See the
+worked vignette and `inst/extdata/priors/README.md` for details.
 
 ## Main functions
 
 ### App and bundled-prior workflow
 
 | Function | Description |
-|----|----|
+|---|---|
 | `run_app()` | Launch the Shiny app with the reviewed bundled prior artifact or a trusted custom bundle. |
 | `app_ui()` | Build the package Shiny user interface. |
 | `app_server()` | Configure the package Shiny server. |
@@ -189,7 +177,7 @@ See the worked vignette and `inst/extdata/priors/README.md` for details.
 ### Data preparation and configuration
 
 | Function | Description |
-|----|----|
+|---|---|
 | `load_study_data()` | Load and clean one CSV or TSV study-data file. |
 | `import_historical_data()` | Batch-import and normalize historical study files. |
 | `time_bins()` | Parse time-interval labels into numeric `time1` and `time2` columns. |
@@ -201,7 +189,7 @@ See the worked vignette and `inst/extdata/priors/README.md` for details.
 ### Prior construction and diagnostics
 
 | Function | Description |
-|----|----|
+|---|---|
 | `chain_priors_from_data()` | Build Bayesian priors from historical study data. |
 | `chain_priors_from_data_helper()` | Run the lower-level Stage 1 prior-fitting workflow. |
 | `chain_prior_plot()` | Plot Stage 1 prior distributions. |
@@ -213,7 +201,7 @@ See the worked vignette and `inst/extdata/priors/README.md` for details.
 ### Target-study analysis and reporting
 
 | Function | Description |
-|----|----|
+|---|---|
 | `bayesian_test_example()` | Compare historical-prior borrowing with a weak-prior comparator. |
 | `ci_plots()` | Plot credible intervals for treatment effects. |
 | `ci_plots_combined()` | Plot combined credible-interval comparisons. |
@@ -225,52 +213,20 @@ See the worked vignette and `inst/extdata/priors/README.md` for details.
 ### Supporting utilities
 
 | Function | Description |
-|----|----|
-| `sinusoidal_interval_mean()` | Calculate the sinusoidal interval mean used by the Chain et al. model. |
+|---|---|
+| `sinusoidal_interval_mean()` | Calculate the sinusoidal interval mean used by the Chain et al. model. |
 | `get_package_logo_path()` | Return the installed package-logo path. |
 | `embed_spba_logo()` | Embed the package logo in a Shiny UI. |
 | `logo_news()` | Display package branding and news content in the app. |
 
 ## Model
 
-PriorRhythm uses the hierarchical sinusoidal dose-response JAGS model
-from Chain et al. (2013) when building Stage 1 priors.
+PriorRhythm uses the hierarchical sinusoidal dose-response JAGS model from
+Chain et al. (2013) when building Stage 1 priors.
 
-    model{
-    for(i in 1:N){
-    y[i] ~ dnorm( mu[i],   pow(sig[s[i]], -2) )
-    mu[i] <-  alpha[s[i]]+
-    A[s[i]]*(12/3.14159/(time2[i]-time1[i]))*(sin(3.14159/12*time2[i]+phi0)-sin(3.14159/12*time1[i]+phi0))+
-    beta[s[i]]*dose[i]  +
-    u[a[i]] + v[b[i]]
-    }
-
-    for(i in 1:na){
-    u[i] ~ dnorm(0, pow(sig_u[sa[i]], -2) )
-    }
-
-    for(i in 1:nb){
-    v[i] ~ dnorm(0, pow(sig_v, -2) )
-    }
-
-    for(j in 1:ns){
-    alpha[j] ~ dnorm(alpha0, pow(sig_alpha, -2) )
-    A[j] ~ dnorm(A0, pow(sig_A, -2) )
-    beta[j] ~ dnorm(beta0, pow(sig_beta, -2) )
-    sig[j] ~ dt(0, pow(2.5,-2), 1) T(0,)
-    sig_u[j] ~ dt(0, pow(2.5,-2), 1) T(0,)
-    }
-
-    sig_v ~ dt(0, pow(2.5,-2), 1) T(0,)
-
-    alpha0 ~ dnorm(alpha0_pop_mean, 0.0004) T(0,)
-    A0 ~ dnorm(0, 0.001) T(0,)
-    beta0 ~ dnorm(0, 0.001)
-    phi0 ~ dunif(0, 6.28318)
-    sig_A ~ dt(0, pow(2.5,-2), 1) T(0,)
-    sig_alpha ~ dt(0, pow(2.5,-2), 1) T(0,)
-    sig_beta ~ dt(0, pow(2.5,-2), 1) T(0,)
-    }
+```{r chain-model, echo = FALSE, comment = ""}
+cat(.chain_model_jags)
+```
 
 For a detailed explanation of the Stage 1 and Stage 2 workflows, model
 parameters, prior-bundle structure, convergence evidence, and reporting
@@ -278,10 +234,10 @@ outputs, see the package vignette.
 
 ## Documentation
 
-- **Worked example:**\
+- **Worked example:**  
   `vignette("bayesian-priors-workflow", package = "PriorRhythm")`
 
-- **Bundled prior-artifact schema and privacy requirements:**\
+- **Bundled prior-artifact schema and privacy requirements:**  
   `inst/extdata/priors/README.md`
 
 ## Code style
@@ -298,35 +254,33 @@ This package follows the conventions documented in
 
 ## Important limitations
 
-- The Shiny app is a **priors-only runtime**. It consumes an
-  already-built prior bundle and does not fit Stage 1 JAGS models during
-  an app session.
+- The Shiny app is a **priors-only runtime**. It consumes an already-built
+  prior bundle and does not fit Stage 1 JAGS models during an app session.
 - Target-study upload currently supports **CSV and TSV files only**.
-- The app does not automatically confirm species, endpoint-definition,
-  or measurement-unit compatibility between uploaded target-study data
-  and a selected prior.
-- The packaged prior bundle contains posterior parameter draws and
-  compact, non-confidential convergence summaries. It must not contain
-  raw historical observations, animal identifiers, chain-level draws, or
-  source-file paths.
-- Credible intervals and probability statements are statistical
-  summaries of the specified model and data. They are not, by
-  themselves, regulatory determinations.
+- The app does not automatically confirm species, endpoint-definition, or
+  measurement-unit compatibility between uploaded target-study data and a
+  selected prior.
+- The packaged prior bundle contains posterior parameter draws and compact,
+  non-confidential convergence summaries. It must not contain raw historical
+  observations, animal identifiers, chain-level draws, or source-file paths.
+- Credible intervals and probability statements are statistical summaries of
+  the specified model and data. They are not, by themselves, regulatory
+  determinations.
 
 ## Ethics statement
 
-PriorRhythm includes Bayesian prior distributions derived from
-historical cardiovascular safety pharmacology studies conducted in
-animal models. No raw experimental datasets are distributed with this
-package. See [`ETHICS.md`](ETHICS.md) for the full statement.
+PriorRhythm includes Bayesian prior distributions derived from historical
+cardiovascular safety pharmacology studies conducted in animal models.
+No raw experimental datasets are distributed with this package. See
+[`ETHICS.md`](ETHICS.md) for the full statement.
 
 ## Acknowledgements
 
 Statistical methodology is based on:
 
-> Chain, A.S.Y. et al. (2013). Identifying the translational gap in the
-> evaluation of drug-induced QTc interval prolongation. *British Journal
-> of Clinical Pharmacology*, 76(5), 779–790.
+> Chain, A.S.Y. et al. (2013). Identifying the translational gap in the
+> evaluation of drug-induced QTc interval prolongation.
+> *British Journal of Clinical Pharmacology*, 76(5), 779–790.
 > <https://doi.org/10.1111/bcp.12101>
 
 Package developed by Richard Virgen-Slane and Dean Dingzhou Li.
@@ -335,6 +289,6 @@ Package developed by Richard Virgen-Slane and Dean Dingzhou Li.
 
 To obtain the current package citation, run:
 
-``` r
+```r
 citation("PriorRhythm")
 ```

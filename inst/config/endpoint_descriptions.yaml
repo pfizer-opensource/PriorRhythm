@@ -1,0 +1,39 @@
+dog:
+  label: "Dog"
+  endpoints:
+    dbp:
+      label: "Diastolic Blood Pressure"
+      unit: "mmHg"
+      description: "Diastolic arterial blood pressure."
+    hr:
+      label: "Heart Rate"
+      unit: "bpm"
+      description: "Heart rate."
+    q_tc:
+      label: "Corrected QT Interval (QTc)"
+      unit: "ms"
+      description: "Heart-rate-corrected QT interval."
+
+nhp:
+  label: "Non-human Primate"
+  endpoints:
+    dbp:
+      label: "Diastolic Blood Pressure"
+      unit: "mmHg"
+      description: "Diastolic arterial blood pressure."
+    hr:
+      label: "Heart Rate"
+      unit: "bpm"
+      description: "Heart rate."
+    q_tc:
+      label: "Corrected QT Interval (QTc)"
+      unit: "ms"
+      description: "Heart-rate-corrected QT interval."
+    rr_i:
+      label: "RR Interval"
+      unit: "ms"
+      description: "Interval between consecutive R waves."
+    sbp:
+      label: "Systolic Blood Pressure"
+      unit: "mmHg"
+      description: "Systolic arterial blood pressure."
